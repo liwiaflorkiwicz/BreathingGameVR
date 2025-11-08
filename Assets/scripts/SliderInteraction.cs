@@ -33,6 +33,11 @@ public class SliderInteraction : MonoBehaviour
 
     }
 
+    public float Inhale => sliderInhale.value;
+    public float Exhale => sliderExhale.value;
+    public float Reps => sliderReps.value;
+
+
     // Save input values to pass to GameScript
     // Te wartosci wykorzystac jakos jako dlugosci oddechow (inhale & exhale) jako
     // np. powiekszanie sie banki mydlanej
