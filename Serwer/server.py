@@ -12,7 +12,7 @@ def receive_data():
     """
     Odbiera JSON z Unity, zapisuje do pliku.
     Dodaje unikalne sessionId i timestamp.
-    Pole 'data' może zawierać np. dane z kontrolerów w przyszłości.
+    Pole 'data' zawiera m.in dane z kontrolerów
     """
     data = request.get_json()
     if not data:
@@ -26,7 +26,7 @@ def receive_data():
     saved_data = {
         "sessionId": session_id,
         "timestamp": timestamp,
-        "data": data  # tutaj możesz przesyłać obiekty z kontrolerów jako JSON
+        "data": data  # przesyłmy obiekty z kontrolerów jako JSON
     }
 
     # Zapis do pliku
