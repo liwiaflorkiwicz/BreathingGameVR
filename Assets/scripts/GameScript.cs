@@ -2,7 +2,7 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class StartGame : MonoBehaviour
+public class GameScript : MonoBehaviour
 {
 
     // Napisac skrypt gry co mozna zrobic while start gry
@@ -24,7 +24,8 @@ public class StartGame : MonoBehaviour
     public void StartGameButtonPressed()
     {
         // Wyœlij dane ze sliderów natychmiast
-        DataSender.SendSliderData(sliders.Inhale, sliders.Exhale, sliders.Reps);
+        int repsInt = Mathf.RoundToInt(sliders.Reps);
+        DataSender.SendSliderData(sliders.Inhale, sliders.Exhale, repsInt);
 
         // Rozpocznij grê (odliczanie 5 sekund)
         StartCoroutine(GameCoroutine());
@@ -58,9 +59,11 @@ public class StartGame : MonoBehaviour
 
         // Po zakoñczeniu gry – wyœlij dane kontrolerów
         DataSender.SendControllersData();
+        yield return new WaitForSeconds(0.5f);
 
         if (EndGamePanel != null)
             EndGamePanel.SetActive(true);
+
     }
 
 }

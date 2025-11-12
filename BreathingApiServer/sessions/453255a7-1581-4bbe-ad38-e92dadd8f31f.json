@@ -1,0 +1,26 @@
+{
+  "data" : {
+    "inhale" : 1.0,
+    "exhale" : 1.0,
+    "reps" : 1,
+    "controllersData" : [ {
+      "time" : 0.0,
+      "leftY" : 0.3619867,
+      "rightY" : 0.70448494
+    }, {
+      "time" : 0.5,
+      "leftY" : 0.19222987,
+      "rightY" : 0.14199841
+    }, {
+      "time" : 1.0,
+      "leftY" : 0.9985111,
+      "rightY" : 0.98575675
+    }, {
+      "time" : 1.5,
+      "leftY" : 0.12937939,
+      "rightY" : 0.13512611
+    } ]
+  },
+  "sessionId" : "453255a7-1581-4bbe-ad38-e92dadd8f31f",
+  "timestamp" : "2025-11-12T19:49:16.2806361"
+}

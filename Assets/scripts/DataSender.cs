@@ -7,13 +7,24 @@ using UnityEngine.Networking;
 public class DataSender : MonoBehaviour
 {
     private static string serverUrl = "http://127.0.0.1:5000/api/data"; // tu wpiszesz później swój adres
+    private static string currentSessionId = "";
+    public static List<ControllerFrame> controllerFrames = new List<ControllerFrame>();
+    public static GameData data;
+
+    [System.Serializable]
+    public class SessionResponse
+    {
+        public string status;
+        public string message;
+        public string sessionId;
+    }
 
     [System.Serializable]
     public class GameData
     {
         public float inhale;
         public float exhale;
-        public float reps;
+        public int reps;
         public List<ControllerFrame> controllersData = new List<ControllerFrame>();
     }
 
@@ -25,8 +36,6 @@ public class DataSender : MonoBehaviour
         public float rightY;
     }
 
-    public static List<ControllerFrame> controllerFrames = new List<ControllerFrame>();
-
     public static void AddControllerSample(float time, float leftY, float rightY)
     {
         controllerFrames.Add(new ControllerFrame
@@ -37,9 +46,7 @@ public class DataSender : MonoBehaviour
         });
     }
 
-    public static GameData data;
-
-    public static void SendSliderData(float inhale, float exhale, float reps)
+    public static void SendSliderData(float inhale, float exhale, int reps)
     {
         data = new GameData
         {
@@ -55,7 +62,33 @@ public class DataSender : MonoBehaviour
 
         DataSender sender = GameObject.FindFirstObjectByType<DataSender>();
         if (sender != null)
-            sender.StartCoroutine(sender.SendRequest(json));
+            sender.StartCoroutine(sender.SendPreSessionRequest(json));
+    }
+
+    private IEnumerator SendPreSessionRequest(string json)
+    {
+        string url = serverUrl + "/presession";
+        using (UnityWebRequest www = new UnityWebRequest(url, "POST"))
+        {
+            byte[] bodyRaw = Encoding.UTF8.GetBytes(json);
+            www.uploadHandler = new UploadHandlerRaw(bodyRaw);
+            www.downloadHandler = new DownloadHandlerBuffer();
+            www.SetRequestHeader("Content-Type", "application/json");
+
+            yield return www.SendWebRequest();
+
+            if (www.result == UnityWebRequest.Result.Success)
+            {
+                // Przechwycenie sessionId z odpowiedzi serwera
+                SessionResponse response = JsonUtility.FromJson<SessionResponse>(www.downloadHandler.text);
+                currentSessionId = response.sessionId;
+                Debug.Log("Pre-session data sent. Received SessionID: " + currentSessionId);
+            }
+            else
+            {
+                Debug.LogError("Error POST /presession: " + www.error);
+            }
+        }
     }
 
     public static int GetSampleCount()
@@ -79,14 +112,16 @@ public class DataSender : MonoBehaviour
 
         DataSender sender = GameObject.FindFirstObjectByType<DataSender>();
         if (sender != null)
-            sender.StartCoroutine(sender.SendRequest(json));
+            sender.StartCoroutine(sender.SendPostSessionRequest(json));
 
         controllerFrames.Clear();
     }
 
-    private IEnumerator SendRequest(string json)
+    private IEnumerator SendPostSessionRequest(string json)
     {
-        using (UnityWebRequest www = new UnityWebRequest(serverUrl, "POST"))
+        string url = serverUrl + "/postsession/" + currentSessionId;
+
+        using (UnityWebRequest www = new UnityWebRequest(url, "POST"))
         {
             byte[] bodyRaw = Encoding.UTF8.GetBytes(json);
             www.uploadHandler = new UploadHandlerRaw(bodyRaw);
@@ -96,7 +131,7 @@ public class DataSender : MonoBehaviour
             yield return www.SendWebRequest();
 
             if (www.result == UnityWebRequest.Result.Success)
-                Debug.Log("Data sent correctly");
+                Debug.Log("Controllers data sent and saved. Session ID: " + currentSessionId);
             else
                 Debug.LogError("Sending error: " + www.error);
         }
