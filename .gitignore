@@ -110,3 +110,14 @@ InitTestScene*.unity*
 
 # Maven wrapper files (already covered by mvnd and mvnw below, but good practice)
 # /BreathingApiServer/.mvn/wrapper/maven-wrapper.jar
+
+# Ignoruje wszystkie pliki binarne DLL i bin
+*.dll
+*.bin
+
+# External Dependency Manager to download using ADB
+/[Aa]ssets/ExternalDependencyManager/
+/[Aa]ssets/Plugins/Android/firebase/
+
+# Downloaded by Package Manager
+/[Pp]ackages/*/lib/
