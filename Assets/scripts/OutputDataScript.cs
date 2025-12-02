@@ -4,49 +4,35 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.Networking;
 
-[System.Serializable]
-public class ControllerFrame
-{
-    public float time;    // czas od początku gry
-    public float leftY;
-    public float rightY;
-}
-
-[System.Serializable]
-public class GameSessionData
-{
-    public float inhale;
-    public float exhale;
-    public int reps;
-    public ControllerFrame[] controllersData;
-}
-
-[System.Serializable]
-public class ResultSummary
-{
-    public float overallAccuracy;
-    public string summaryTable;
-    public string sessionId;
-}
-
 public class OutputDataScript : MonoBehaviour
 {
-    private static string serverUrl = "http://127.0.0.1:5000/api/data/results";
-    [SerializeField] private TextMeshProUGUI ResultsText;
+    private static string serverUrl = "http://192.168.43.165:5000/api/data/results";
 
-    void Start()
+    [SerializeField] private TextMeshProUGUI ResultsText;
+    [SerializeField] private GraphRenderer graphRenderer;
+
+    void OnEnable()
     {
         StartCoroutine(GetDataFromServer());
     }
 
-    public class SessionWrapper
-    {
-        public GameSessionData session;
-    }
-
     private IEnumerator GetDataFromServer()
     {
-        using (UnityWebRequest www = UnityWebRequest.Get(serverUrl))
+        string mySessionId = DataSender.currentSessionId;
+
+        if (string.IsNullOrEmpty(mySessionId))
+        {
+            Debug.LogWarning("NO SessionID.");
+            if (ResultsText != null) ResultsText.text = "No session data.";
+            yield break;
+        }
+
+        yield return new WaitForSeconds(0.5f);
+
+        string finalUrl = serverUrl + "/" + mySessionId;
+        Debug.Log("Sending GET to: " + finalUrl);
+
+        using (UnityWebRequest www = UnityWebRequest.Get(finalUrl))
         {
             yield return www.SendWebRequest();
 
@@ -55,14 +41,17 @@ public class OutputDataScript : MonoBehaviour
                 string json = www.downloadHandler.text;
                 Debug.Log("Received data from server: " + json);
 
-                ResultSummary summary = JsonUtility.FromJson<ResultSummary>(json);
+                DataSender.ResultSummary summary = JsonUtility.FromJson<DataSender.ResultSummary>(json);
 
-                if (ResultsText != null)
-                    ResultsText.text = summary.summaryTable;
+                if (graphRenderer != null && summary.graphData != null)
+                {
+                    graphRenderer.DrawGraph(summary.graphData, summary.overallAccuracy);
+                }
             }
             else
             {
                 Debug.LogError("Error fetching data: " + www.error);
+                if (ResultsText != null) ResultsText.text = "Error loading results.";
             }
         }
     }

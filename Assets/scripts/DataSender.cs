@@ -6,10 +6,12 @@ using UnityEngine.Networking;
 
 public class DataSender : MonoBehaviour
 {
-    private static string serverUrl = "http://127.0.0.1:5000/api/data"; // tu wpiszesz później swój adres
-    private static string currentSessionId = "";
+    private static string serverUrl = "http://192.168.43.165:5000/api/data";
+    public static string currentSessionId = "";
     public static List<ControllerFrame> controllerFrames = new List<ControllerFrame>();
     public static GameData data;
+
+    // --- DATA CLASSES (Defined only here) ---
 
     [System.Serializable]
     public class SessionResponse
@@ -35,6 +37,17 @@ public class DataSender : MonoBehaviour
         public float leftY;
         public float rightY;
     }
+
+    // Adding ResultSummary class here so OutputDataScript can use it
+    [System.Serializable]
+    public class ResultSummary
+    {
+        public float overallAccuracy;
+        public List<ControllerFrame> graphData; // Uses DataSender.ControllerFrame
+        public string sessionId;
+    }
+
+    // --- SENDING LOGIC ---
 
     public static void AddControllerSample(float time, float leftY, float rightY)
     {
@@ -79,7 +92,6 @@ public class DataSender : MonoBehaviour
 
             if (www.result == UnityWebRequest.Result.Success)
             {
-                // Przechwycenie sessionId z odpowiedzi serwera
                 SessionResponse response = JsonUtility.FromJson<SessionResponse>(www.downloadHandler.text);
                 currentSessionId = response.sessionId;
                 Debug.Log("Pre-session data sent. Received SessionID: " + currentSessionId);
@@ -96,28 +108,30 @@ public class DataSender : MonoBehaviour
         return controllerFrames.Count;
     }
 
-
-    public static void SendControllersData()
+    public static void SendControllersData(System.Action<bool> onComplete = null)
     {
         if (controllerFrames.Count == 0)
         {
             Debug.LogWarning("No controller samples collected.");
+            onComplete?.Invoke(false);
             return;
         }
 
         data.controllersData = new List<ControllerFrame>(controllerFrames);
-        
+
         string json = JsonUtility.ToJson(data);
-        Debug.Log("Sending controllers JSON: " + json);
+        // Debug.Log("Sending controllers JSON: " + json);
 
         DataSender sender = GameObject.FindFirstObjectByType<DataSender>();
         if (sender != null)
-            sender.StartCoroutine(sender.SendPostSessionRequest(json));
+            sender.StartCoroutine(sender.SendPostSessionRequest(json, onComplete));
+        else
+            onComplete?.Invoke(false);
 
         controllerFrames.Clear();
     }
 
-    private IEnumerator SendPostSessionRequest(string json)
+    private IEnumerator SendPostSessionRequest(string json, System.Action<bool> onComplete)
     {
         string url = serverUrl + "/postsession/" + currentSessionId;
 
@@ -131,9 +145,15 @@ public class DataSender : MonoBehaviour
             yield return www.SendWebRequest();
 
             if (www.result == UnityWebRequest.Result.Success)
-                Debug.Log("Controllers data sent and saved. Session ID: " + currentSessionId);
+            {
+                Debug.Log("Controllers data sent successfully.");
+                onComplete?.Invoke(true); // Success
+            }
             else
+            {
                 Debug.LogError("Sending error: " + www.error);
+                onComplete?.Invoke(false); // Error
+            }
         }
     }
 }

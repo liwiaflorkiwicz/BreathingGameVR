@@ -101,47 +101,43 @@ public class DataController {
         );
     }
 
-    @GetMapping("/results")
-    public ResponseEntity<?> getSessionResults() {
+    @GetMapping("/results/{sessionId}")
+    public ResponseEntity<?> getSessionResults(@PathVariable String sessionId) {
+        // 1. Tworzymy nazwę pliku na podstawie ID otrzymanego z Unity
+        String filename = sessionId + ".json";
+        Path filepath = savePath.resolve(filename);
+
+        // 2. Sprawdzamy, czy plik dla tej konkretnej sesji istnieje
+        if (!Files.exists(filepath)) {
+            System.err.println("File not found: " + filepath.toAbsolutePath());
+            return new ResponseEntity<>("Session data not found for ID: " + sessionId, HttpStatus.NOT_FOUND);
+        }
+
         try {
-            File[] files = savePath.toFile().listFiles((dir, name) -> name.endsWith(".json"));
-            if (files == null || files.length == 0) {
-                return new ResponseEntity<>("No session data", HttpStatus.NOT_FOUND);
-            }
+            // 3. Wczytujemy KONKRETNY plik (zamiast szukać najnowszego)
+            @SuppressWarnings("unchecked")
+            HashMap<String, Object> fileContent = objectMapper.readValue(filepath.toFile(), HashMap.class);
 
-            File lastFile = java.util.Arrays.stream(files)
-                    .max(Comparator.comparingLong(File::lastModified))
-                    .orElseThrow(() -> new IOException("Couldn't find newest data"));
+            // 4. Konwertujemy dane
+            GameSessionData sessionData = objectMapper.convertValue(fileContent.get("data"), GameSessionData.class);
 
-            GameSessionData sessionData;
-            String sessionId;
-            try {
-                @SuppressWarnings("unchecked")
-                HashMap<String, Object> fileContent = objectMapper.readValue(lastFile, HashMap.class);
-                sessionId = (String) fileContent.get("sessionId");
-
-                sessionData = objectMapper.convertValue(fileContent.get("data"), GameSessionData.class);
-
-            } catch (Exception e) {
-                System.err.println("File error: " + lastFile.getName() + " - " + e.getMessage());
-                return new ResponseEntity<>("Error while converting session file", HttpStatus.INTERNAL_SERVER_ERROR);
-            }
-
-            // generate results
+            // 5. Generujemy podsumowanie
             ResultSummary summary = calculateSummary(sessionData);
             summary.setSessionId(sessionId);
 
             return new ResponseEntity<>(summary, HttpStatus.OK);
 
         } catch (IOException e) {
-            return new ResponseEntity<>("Server error: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+            System.err.println("Error reading file: " + filename + " - " + e.getMessage());
+            return new ResponseEntity<>("Server error while reading file", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
-
     // Returns ResultSummary
     private ResultSummary calculateSummary(GameSessionData session) {
         ResultSummary summary = new ResultSummary();
         List<ControllerFrame> controllersData = session.getControllersData();
+
+        summary.setGraphData(controllersData);
 
         if (controllersData == null || controllersData.isEmpty()) {
             summary.setSummaryTable("No controller data");
@@ -175,9 +171,6 @@ public class DataController {
                 frameIndex++;
             }
 
-            output.append(String.format("%d\tInhale\t%.2f\t%s\t%s\n",
-                    r + 1, inhaleTime, (leftMatchInhale ? "\t\tV" : "\t\tX"), (rightMatchInhale ? "\tV" : "\tX")));
-
             totalChecks += 2;
             if (leftMatchInhale) totalCorrect++;
             if (rightMatchInhale) totalCorrect++;
@@ -195,18 +188,13 @@ public class DataController {
                 frameIndex++;
             }
 
-            output.append(String.format("%d\tExhale\t%.2f\t%s\t%s\n",
-                    r + 1, exhaleTime, (leftMatchExhale ? "\t\tV" : "\t\tX"), (rightMatchExhale ? "\tV" : "\tX")));
-
             totalChecks += 2;
             if (leftMatchExhale) totalCorrect++;
             if (rightMatchExhale) totalCorrect++;
         }
 
         float percent = (totalChecks > 0) ? (float) totalCorrect / totalChecks * 100f : 0f;
-        output.append(String.format("\nOverall Accuracy: %.1f%%", percent));
 
-        summary.setSummaryTable(output.toString());
         summary.setOverallAccuracy(percent);
         return summary;
     }

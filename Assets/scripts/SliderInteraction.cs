@@ -4,8 +4,7 @@ using UnityEngine.UI;
 
 public class SliderInteraction : MonoBehaviour
 {
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-
+    [Header("UI Components")]
     [SerializeField] private Slider sliderInhale;
     [SerializeField] private Slider sliderExhale;
     [SerializeField] private Slider sliderReps;
@@ -18,12 +17,12 @@ public class SliderInteraction : MonoBehaviour
     {
         sliderInhale.onValueChanged.AddListener((value) =>
         {
-            inhaleValue.text = value.ToString();
+            inhaleValue.text = value.ToString("0.0"); // format recommended for decimals
         });
 
         sliderExhale.onValueChanged.AddListener((value) =>
         {
-            exhaleValue.text = value.ToString();
+            exhaleValue.text = value.ToString("0.0");
         });
 
         sliderReps.onValueChanged.AddListener((value) =>
@@ -31,20 +30,18 @@ public class SliderInteraction : MonoBehaviour
             repsValue.text = value.ToString();
         });
 
+        // Initialize text values on startup
+        Update();
     }
 
+    // Public properties to be accessed by the GameScript.
+    // These values control breath duration and mechanics (e.g., soap bubble expansion).
     public float Inhale => sliderInhale.value;
     public float Exhale => sliderExhale.value;
     public float Reps => sliderReps.value;
 
-
-    // Save input values to pass to GameScript
-    // Te wartosci wykorzystac jakos jako dlugosci oddechow (inhale & exhale) jako
-    // np. powiekszanie sie banki mydlanej
-
-    // Update is called once per frame
     void Update()
     {
-        
+
     }
 }

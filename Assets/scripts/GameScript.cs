@@ -1,70 +1,127 @@
 using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.XR;
+using System.Collections.Generic;
+using TMPro;
 
 public class GameScript : MonoBehaviour
 {
-
-    // Napisac skrypt gry co mozna zrobic while start gry
-
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    
     [SerializeField] private SliderInteraction sliders;
     [SerializeField] private Button ButtonStart;
     [SerializeField] private GameObject EndGamePanel;
+
+    [SerializeField] private Transform LeftHandTransform;
+    [SerializeField] private Transform RightHandTransform;
+
+    [Header("UI Elements & Bubble")]
+    [SerializeField] private GameObject CountdownPanel;
+    [SerializeField] private TextMeshProUGUI CountdownText;
+    [SerializeField] private Transform BubbleTransform;
+
+    [SerializeField] private Vector3 minBubbleScale = new Vector3(50f, 50f, 50f);
+    [SerializeField] private Vector3 maxBubbleScale = new Vector3(200f, 200f, 200f);
 
     void Start()
     {
         ButtonStart.onClick.RemoveAllListeners();
         ButtonStart.onClick.AddListener(StartGameButtonPressed);
-        if (EndGamePanel != null)
-            EndGamePanel.SetActive(false);
+
+        if (EndGamePanel != null) EndGamePanel.SetActive(false);
+        if (CountdownPanel != null) CountdownPanel.SetActive(false);
+        if (BubbleTransform != null) BubbleTransform.gameObject.SetActive(false);
     }
 
     public void StartGameButtonPressed()
     {
-        // Wyœlij dane ze sliderów natychmiast
         int repsInt = Mathf.RoundToInt(sliders.Reps);
         DataSender.SendSliderData(sliders.Inhale, sliders.Exhale, repsInt);
 
-        // Rozpocznij grê (odliczanie 5 sekund)
         StartCoroutine(GameCoroutine());
     }
 
     private IEnumerator GameCoroutine()
     {
-        // Ca³kowity czas gry = reps * (inhale + exhale)
-        float totalDuration = sliders.Reps * (sliders.Inhale + sliders.Exhale);
+        // 1. COUNTDOWN 
+        if (CountdownPanel != null && CountdownText != null)
+        {
+            CountdownPanel.SetActive(true);
+            for (int i = 5; i > 0; i--)
+            {
+                CountdownText.text = i.ToString();
+                yield return new WaitForSeconds(1.0f);
+            }
+            CountdownPanel.SetActive(false);
+        }
+
+        // 2. GAME
+        if (BubbleTransform != null) BubbleTransform.gameObject.SetActive(true);
+
+        float inhaleTime = sliders.Inhale;
+        float exhaleTime = sliders.Exhale;
+        float totalReps = sliders.Reps;
+        float holdDuration = 0.2f;
+
+        float cycleDuration = inhaleTime + holdDuration + exhaleTime + holdDuration;
+        float totalDuration = totalReps * cycleDuration;
+
         float elapsed = 0f;
-        float sampleInterval = 0.5f;
+        float sampleTimer = 0f;
+        float sampleInterval = 0.1f;
 
-        Debug.Log($"Game started. Duration: {totalDuration}s");
-
-        // Czekaj krótk¹ chwilê, aby mieæ pewnoœæ, ¿e SendSliderData siê wykona³
         yield return new WaitForSeconds(0.5f);
+
+        float minHeight = 0.0f; 
+        float maxHeight = 2.6f; 
 
         while (elapsed < totalDuration)
         {
-            float leftY = Random.Range(0f, 1f);
-            float rightY = Random.Range(0f, 1f);
+            float dt = Time.deltaTime;
+            elapsed += dt;
+            sampleTimer += dt;
 
-            DataSender.AddControllerSample(elapsed, leftY, rightY);
-            Debug.Log($"[Sample] t={elapsed:F1}s L={leftY:F2} R={rightY:F2}");
+            float currentCycleTime = elapsed % cycleDuration;
+            float endOfInhale = inhaleTime;
+            float endOfHoldTop = inhaleTime + holdDuration;
+            float endOfExhale = inhaleTime + holdDuration + exhaleTime;
 
-            yield return new WaitForSeconds(sampleInterval);
-            elapsed += sampleInterval;
+            if (currentCycleTime < endOfInhale)
+                BubbleTransform.localScale = Vector3.Lerp(minBubbleScale, maxBubbleScale, currentCycleTime / inhaleTime);
+            else if (currentCycleTime < endOfHoldTop)
+                BubbleTransform.localScale = maxBubbleScale;
+            else if (currentCycleTime < endOfExhale)
+                BubbleTransform.localScale = Vector3.Lerp(maxBubbleScale, minBubbleScale, (currentCycleTime - endOfHoldTop) / exhaleTime);
+            else
+                BubbleTransform.localScale = minBubbleScale;
+
+            if (sampleTimer >= sampleInterval)
+            {
+                sampleTimer = 0f;
+
+                // Getting raw position
+                float rawLeftY = LeftHandTransform.position.y;
+                float rawRightY = RightHandTransform.position.y;
+
+                Debug.Log($"[RAW] LeftY: {rawLeftY:F3} | RightY: {rawRightY:F3}");
+
+                float leftY = Mathf.Clamp01((rawLeftY - minHeight) / (maxHeight - minHeight));
+                float rightY = Mathf.Clamp01((rawRightY - minHeight) / (maxHeight - minHeight));
+
+                DataSender.AddControllerSample(elapsed, leftY, rightY);
+            }
+
+            yield return null;
         }
 
-        Debug.Log($"Game ended. Sending {DataSender.GetSampleCount()} samples...");
+        if (BubbleTransform != null) BubbleTransform.gameObject.SetActive(false);
 
-        // Po zakoñczeniu gry – wyœlij dane kontrolerów
-        DataSender.SendControllersData();
-        yield return new WaitForSeconds(0.5f);
+        Debug.Log("Game ended. Sending data...");
 
-        if (EndGamePanel != null)
-            EndGamePanel.SetActive(true);
+        bool uploadFinished = false;
+        DataSender.SendControllersData((success) => { uploadFinished = true; });
 
+        while (!uploadFinished) yield return null;
+
+        if (EndGamePanel != null) EndGamePanel.SetActive(true);
     }
-
 }
-
