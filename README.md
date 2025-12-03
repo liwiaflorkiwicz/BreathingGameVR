@@ -54,7 +54,7 @@ Match your breathing to the rhythm shown.
 Continue for as long as desired to complete a session.
 
 ### Project Structure
-
+```
 BreathingGameVR/
  ├── Assets/
  │   ├── Scripts/         # Code for breathing mechanics and interactions
@@ -64,3 +64,4 @@ BreathingGameVR/
  │   └── Prefabs/         # Prefab objects
  ├── ProjectSettings/
  └── Packages/
+```
