@@ -11,10 +11,6 @@ A virtual reality game designed to support calm, controlled breathing exercises 
 - [Usage](#usage)
 - [How to Play](#how-to-play)
 - [Project Structure](#project-structure)
-- [Contributing](#contributing)
-- [Known Issues](#known-issues)
-- [Roadmap](#roadmap)
-- [License](#license)
 
 ## About
 
